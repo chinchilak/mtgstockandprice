@@ -211,7 +211,7 @@ if searchbutton:
         ng_df[COLS[6]] = ng_df[COLS[6]].str.strip().replace("not in stock", "0")
         ng_df[COLS[6]] = ng_df[COLS[6]].astype(str).str.replace(r'\D', '', regex=True)
     except:
-        ng_df = pd.DataFrame()
+        ng_df = pd.DataFrame(columns=COLS)
 
     try:
         cr_data = [item for sublist in results_parallel if sublist for item in sublist]
@@ -219,7 +219,7 @@ if searchbutton:
         cr_df = cr_df.drop(columns=[COLS[4], COLS[5]])
         cr_df[COLS[6]] = cr_df[COLS[6]].astype(str).str.replace(r' ks', '', regex=True)
     except:
-        cr_df = pd.DataFrame()
+        cr_df = pd.DataFrame(columns=COLS)
     
     try:
         bl_data = [item for sublist in results_parallel2 if sublist for item in sublist]
@@ -228,7 +228,7 @@ if searchbutton:
         bl_df[COLS[6]] = bl_df[COLS[6]].astype(str).str.replace(r' ks', '', regex=True)
         bl_df[COLS[7]] = bl_df[COLS[7]].astype(str).str.replace(r'od ', '', regex=True)
     except:
-        bl_df = pd.DataFrame()
+        bl_df = pd.DataFrame(columns=COLS)
     
     
     if checkstock:
