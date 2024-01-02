@@ -11,8 +11,16 @@ BL = "https://www.blacklotus.cz/magic-kusove-karty/"
 COLS = ("Name", "Set", "Type", "Rarity", "Language", "Condition", "Stock", "Price")
 TITLE = "MTG Card Availability & Price Comparison"
 
-def process_input_data(inputstring:str) -> list:
-    return inputstring.strip().split('\n')
+def process_input_data(inputstring: str) -> list:
+    lines = inputstring.strip().split('\n')
+    processed_lines = []
+    for line in lines:
+        index = next((i for i, char in enumerate(line) if not char.isdigit() and not char.isspace()), None)
+        if index is not None:
+            processed_lines.append(line[index:].strip())
+        else:
+            processed_lines.append(line.strip())
+    return processed_lines
 
 def process_dataframe_height(dataframe:pd.DataFrame) -> int:
     return int((len(dataframe) + 1) * 35 + 3)
