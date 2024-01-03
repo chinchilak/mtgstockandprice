@@ -145,6 +145,10 @@ def get_najada_games_data(url: str, searchstring: str) -> list:
         page.click('div.my-5.Button.font-encodeCond.f-15.p-7-44.green')
         page.wait_for_selector('.BulkPurchaseResult', state='visible')
 
+        arrow_down_elements = page.query_selector_all('.icon.icon_arrow-down')
+        for arrow_down_element in arrow_down_elements:
+            arrow_down_element.click()
+
         loose_card_elements = page.query_selector_all('.BulkPurchaseResult .LooseCard')
 
         result_list = []
