@@ -1,10 +1,18 @@
 import asyncio
 from playwright.async_api import async_playwright
+from flask import Flask, render_template, request
+import time
 
 CR = "https://cernyrytir.cz/index.php3?akce=3"
 BL = "https://www.blacklotus.cz/magic-kusove-karty/"
 NG = "https://www.najada.games/mtg/singles/bulk-purchase"
 COLS = ("Name", "Set", "Type", "Rarity", "Language", "Condition", "Stock", "Price")
+
+app = Flask(__name__)
+
+def flatten_nested_list(nested_list):
+    flat_list = [item for sublist in nested_list for item in sublist]
+    return flat_list
 
 async def process_input_data(inputstring):
     return inputstring.strip().split('\n')
@@ -160,20 +168,53 @@ async def get_najada_games_data(url: str, searchstring: str) -> list:
         return result_list
 
 async def main(inputlist, inpustring):
-    tasks_parallel_cerny_rytir = [get_cerny_rytir_data(CR, item) for item in inputlist]
-    tasks_parallel_black_lotus = [get_black_lotus_data(BL, item) for item in inputlist]
+    start_time = time.time()
+    try:
+        print("Running Cerny Rytir script...")
+        tasks_parallel_cerny_rytir = [get_cerny_rytir_data(CR, item) for item in inputlist]
+        results_parallel_cerny_rytir = await asyncio.gather(*tasks_parallel_cerny_rytir)
+        print(f"Cerny Rytir script completed in {time.time() - start_time:.2f} seconds.")
+    except Exception as e:
+        print(f"Error in Cerny Rytir script: {e}")
+        results_parallel_cerny_rytir = []
 
-    results_parallel_cerny_rytir = await asyncio.gather(*tasks_parallel_cerny_rytir)
-    results_parallel_black_lotus = await asyncio.gather(*tasks_parallel_black_lotus)
-    
-    result_once = await get_najada_games_data(NG, inpustring)
+    try:
+        print("Running Black Lotus script...")
+        tasks_parallel_black_lotus = [get_black_lotus_data(BL, item) for item in inputlist]
+        results_parallel_black_lotus = await asyncio.gather(*tasks_parallel_black_lotus)
+        print(f"Black Lotus script completed in {time.time() - start_time:.2f} seconds.")
+    except Exception as e:
+        print(f"Error in Black Lotus script: {e}")
+        results_parallel_black_lotus = []
 
-    return results_parallel_cerny_rytir, results_parallel_black_lotus, result_once
+    try:
+        print("Running Najada Games script...")
+        result_sequence_najada_games = await get_najada_games_data(NG, inpustring)
+        print(f"Najada Games script completed in {time.time() - start_time:.2f} seconds.")
+    except Exception as e:
+        print(f"Error in Najada Games script: {e}")
+        result_sequence_najada_games = []
 
-async def run():
-    inpustring = "Shivan Dragon\nThe Irencrag"
-    inputlist = await process_input_data(inpustring)
-    results_parallel_cerny_rytir, results_parallel_black_lotus, result_once = await main(inputlist, inpustring)
-    print(results_parallel_cerny_rytir, results_parallel_black_lotus, result_once)
+    print(f"All scripts completed in {time.time() - start_time:.2f} seconds.")
 
-asyncio.run(run())
+    return results_parallel_cerny_rytir, results_parallel_black_lotus, result_sequence_najada_games
+
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/process', methods=['POST'])
+def process():
+    input_string = request.form['input_string']
+    input_list = asyncio.run(process_input_data(input_string))
+    results_parallel_cerny_rytir, results_parallel_black_lotus, result_sequence_najada_games = asyncio.run(main(input_list, input_string))
+    return render_template('result.html',
+                           cr_results=flatten_nested_list(results_parallel_cerny_rytir),
+                           bl_results=flatten_nested_list(results_parallel_black_lotus),
+                           ng_results=result_sequence_najada_games)
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+# asyncio.run(run())
