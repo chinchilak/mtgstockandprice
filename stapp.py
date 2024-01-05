@@ -248,9 +248,9 @@ if searchbutton:
         cr_df = cr_df[cr_df[COLS[6]] != "0"]
         bl_df = bl_df[bl_df[COLS[6]] != "0"]
         
-    col1.data_editor(ng_df, hide_index=True, disabled=True, use_container_width=True, height=process_dataframe_height(ng_df))
-    col2.data_editor(cr_df, hide_index=True, disabled=True, use_container_width=True, height=process_dataframe_height(cr_df))
-    col3.data_editor(bl_df, hide_index=True, disabled=True, use_container_width=True, height=process_dataframe_height(bl_df))
+    col1.data_editor(ng_df, hide_index=True, disabled=True, use_container_width=True, height=process_dataframe_height(ng_df), key="ngdata")
+    col2.data_editor(cr_df, hide_index=True, disabled=True, use_container_width=True, height=process_dataframe_height(cr_df), key="crdata")
+    col3.data_editor(bl_df, hide_index=True, disabled=True, use_container_width=True, height=process_dataframe_height(bl_df), key="bldata")
 
 
     st.sidebar.success("Processed in {:.1f} seconds".format(elapsed_time))
