@@ -1,2 +1,18 @@
 [theme]
 base="dark"
+
+[general]
+enableCORS = false
+port = 8501
+
+[global]
+numThreads = 4
+optimizeCaching = true
+showWarningOnDirectExecution = true
+
+[client]
+caching = true
+gatherUsageStats = false
+headless = false
+reportOnError = true
+showWarningOnDirectExecution = true
