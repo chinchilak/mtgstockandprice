@@ -99,36 +99,39 @@ def get_cerny_rytir_data(url:str, search_query:str) -> list:
         page.goto(url)
         page.type('input[name="jmenokarty"]', search_query)
         page.press('input[name="jmenokarty"]', 'Enter')
-        page.wait_for_load_state('domcontentloaded')
+        page.wait_for_load_state("domcontentloaded")
 
-        tbody_elements = page.locator('tbody').all()
+        table_xpath = "/html/body/table/tbody/tr[2]/td[2]/table/tbody/tr/td/table/tbody"
+        page.wait_for_selector(f"xpath={table_xpath}")
 
-        if len(tbody_elements) >= 7:
-            tbody = tbody_elements[6]
+        table = page.locator(f"xpath={table_xpath}")
+        rows = table.locator("tr").all()
+        table_data = [
+        [
+            td.text_content().replace("\xa0", " ").strip()
+            for td in row.locator("td").all()
+            if td.text_content().replace("\xa0", " ").strip()
+        ]
+        for row in rows]
 
-            td_elements = tbody.locator('td').all()
-
-            data = []
-            current_lines = []
-
-            for td in td_elements:
-                line = td.inner_text().strip()
-                line = line.replace('\xa0', ' ')
-                if len(line) > 0:
-                    current_lines.append(line)
-                    if len(current_lines) == 6:
-                        category_data = {
-                            COLS[0]: current_lines[0],
-                            COLS[1]: current_lines[1],
-                            COLS[2]: current_lines[2],
-                            COLS[3]: current_lines[3],
-                            COLS[4]: "",
-                            COLS[5]: "",
-                            COLS[6]: current_lines[4],
-                            COLS[7]: current_lines[5]}
-
-                        data.append(category_data)
-                        current_lines = []
+        merged_list = []
+        for i in range(0, len(table_data), 3):
+            sublist = table_data[i:i+3]
+            merged_list.append([item for sublist in sublist for item in sublist])
+        
+        data = []
+        for row_data in merged_list:
+            if len(row_data) == 6:
+                category_data = {
+                    COLS[0]: row_data[0],
+                    COLS[1]: row_data[1],
+                    COLS[2]: row_data[2],
+                    COLS[3]: row_data[3],
+                    COLS[4]: "",
+                    COLS[5]: "",
+                    COLS[6]: row_data[4],
+                    COLS[7]: row_data[5]}
+                data.append(category_data)
 
         browser.close()
         return data
