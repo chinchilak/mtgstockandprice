@@ -137,49 +137,74 @@ def get_cerny_rytir_data(url:str, search_query:str) -> list:
         return data
 
 def get_najada_games_data(url: str, searchstring: str) -> list:
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        context = browser.new_context()
-        page = context.new_page()
-        page.goto(url)
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            context = browser.new_context()
+            page = context.new_page()
+            page.goto(url)
 
-        page.wait_for_selector('textarea#cardData')
-        page.fill('textarea#cardData', searchstring)
-        page.click('div.my-5.Button.font-encodeCond.f-15.p-7-44.green')
-        page.wait_for_selector('.BulkPurchaseResult', state='visible')
+            page.wait_for_selector('textarea#cardData')
+            page.fill('textarea#cardData', searchstring)
+            page.click('div.my-5.Button.font-encodeCond.f-15.p-7-44.green')
+            page.wait_for_selector('.BulkPurchaseResult', state='visible')
 
-        arrow_down_elements = page.query_selector_all('.icon.icon_arrow-down')
-        for arrow_down_element in arrow_down_elements:
-            arrow_down_element.click()
+            arrow_down_elements = page.query_selector_all('.icon.icon_arrow-down')
+            for arrow_down_element in arrow_down_elements:
+                arrow_down_element.click()
 
-        loose_card_elements = page.query_selector_all('.BulkPurchaseResult .LooseCard')
+            loose_card_elements = page.query_selector_all('.BulkPurchaseResult .LooseCard')
 
-        result_list = []
-        headers = [COLS[5], COLS[6], COLS[7]]
-        for element in loose_card_elements:
-            card_info = {}
-            card_info[COLS[0]] = element.evaluate('(element) => element.querySelector(".title.font-encodeCond").textContent')
-            card_info[COLS[1]] = element.evaluate('(element) => element.querySelector(".expansionTitle.font-hind").textContent')
-            card_info[COLS[3]] = element.evaluate('(element) => element.querySelector(".rarity.font-hind.text-right").textContent')
-            card_info[COLS[4]] = (element.evaluate('(element) => element.querySelector(".name").textContent')).strip()
+            result_list = []
+            result2_list = []
+            for element in loose_card_elements:
+                card_info = {}
+                card_info[COLS[0]] = element.evaluate('(element) => element.querySelector(".title.font-encodeCond").textContent')
+                card_info[COLS[1]] = element.evaluate('(element) => element.querySelector(".expansionTitle.font-hind").textContent')
+                card_info[COLS[3]] = element.evaluate('(element) => element.querySelector(".rarity.font-hind.text-right").textContent')
+                card_info[COLS[4]] = (element.evaluate('(element) => element.querySelector(".name").textContent')).strip()
 
-            details_text = (element.evaluate('(element) => element.querySelector(".TabSwitchVertical").textContent')).strip()
-            details_list = [item.strip() for item in details_text.split('\n') if item.strip()]
-            details_list = [item[-2:] if "Wantlist " in item else item for item in details_list]
-            details_list = [item for item in details_list if '+' not in item and '-' not in item and "r." not in item]
-            if len(details_list) >= 2:
-                details_list = details_list[1:]
+                result_list.append(card_info)
 
-            sublists = [details_list[i:i + 3] for i in range(0, len(details_list), 3)]
+                condition_elements = element.query_selector_all('.state')
+                group_condition = [{COLS[5]: item.inner_text()} for item in condition_elements]
 
-            for sublist in sublists:
-                for i, col_header in enumerate(headers):
-                    card_info[col_header] = sublist[i]
-                result_list.append(card_info.copy())
+                stock_elements = element.query_selector_all('.col-3 .Status span.font-hind span')
+                group_stock = [{COLS[6]: item.inner_text()} for item in stock_elements]
+            
+                price_elements = element.query_selector_all('.col-2 .NumberFormat.font-encodeCond.green')
+                group_price = [{COLS[7]: item.inner_text().strip()} for item in price_elements]
 
-        browser.close()
+                list_group = []
 
-        return result_list
+                for condition, stock, price in zip(group_condition, group_stock, group_price):
+                    combined_dict = {}
+                    combined_dict.update(condition)
+                    combined_dict.update(stock)
+                    combined_dict.update(price)
+                    list_group.append(combined_dict)
+                
+                result2_list.append(list_group)
+
+            browser.close()
+
+            combined_list = []
+
+            for dict1, sublist2 in zip(result_list, result2_list):
+                combined_sublist = []
+                for dict2 in sublist2:
+                    combined_dict = dict1.copy()
+                    combined_dict.update(dict2)
+                    combined_sublist.append(combined_dict)
+
+                combined_list.append(combined_sublist)
+            
+            flattened_list = [combined_dict for sublist in combined_list for combined_dict in sublist]
+            print(flattened_list)
+
+            return flattened_list
+    except:
+        return ["N/A"]
 
 
 st.set_page_config(page_title=TITLE, layout="wide", initial_sidebar_state="expanded")
@@ -197,6 +222,7 @@ col2.subheader("Černý rytíř")
 col3.subheader("Blacklotus")
 
 if searchbutton:
+    
     bar = st.sidebar.progress(0, text="Obtaining Data...")
     start_time = time.time()
     inputlist = process_input_data(inpustring)
