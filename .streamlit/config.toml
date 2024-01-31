@@ -11,7 +11,6 @@ optimizeCaching = true
 showWarningOnDirectExecution = true
 
 [client]
-caching = true
 gatherUsageStats = false
 headless = false
 reportOnError = true
