@@ -200,7 +200,6 @@ def get_najada_games_data(url: str, searchstring: str) -> list:
                 combined_list.append(combined_sublist)
             
             flattened_list = [combined_dict for sublist in combined_list for combined_dict in sublist]
-            print(flattened_list)
 
             return flattened_list
     except:
