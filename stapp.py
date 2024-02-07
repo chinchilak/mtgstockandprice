@@ -238,6 +238,12 @@ if searchbutton:
         future_once = executor.submit(get_najada_games_data, NG, inpustring)
         result_once = future_once.result()
 
+# import multiprocessing
+#     with multiprocessing.Pool() as pool:
+#         results_parallel = pool.starmap(get_cerny_rytir_data, [(CR, item) for item in inputlist])
+#         results_parallel2 = pool.starmap(get_black_lotus_data, [(BL, item) for item in inputlist])
+#         result_once = pool.apply(get_najada_games_data, (NG, inpustring))
+
     bar.progress(75, text="Processing Data...")
     elapsed_time = time.time() - start_time
 
