@@ -8,7 +8,7 @@ CR = "https://cernyrytir.cz/index.php3?akce=3"
 NG = "https://www.najada.games/mtg/singles/bulk-purchase"
 BL = "https://www.blacklotus.cz/magic-kusove-karty/"
 
-COLS = ("Name", "Set", "Type", "Rarity", "Language", "Condition", "Stock", "Price")
+COLS = ("Name", "Set", "Type", "Rarity", "Language", "Condition", "Stock", "Price", "Details")
 TITLE = "MTG Card Availability & Price Comparison"
 SHOPS = ["Černý rytíř", "Najada Games", "Blacklotus"]
 
@@ -107,6 +107,17 @@ def get_cerny_rytir_data(url:str, search_query:str) -> list:
 
         table = page.locator(f"xpath={table_xpath}")
         rows = table.locator("tr").all()
+
+        cardid = []
+        for row in rows:
+            for td in row.locator("td").all():
+                td_html = td.evaluate('(element) => element.innerHTML')
+                if "name" in td_html and "objednejkusovku" in td_html:
+                    name_start_index = td_html.find('name="') + len('name="')
+                    name_end_index = td_html.find('"', name_start_index)
+                    name_value = td_html[name_start_index:name_end_index]
+                    cardid.append(name_value)
+          
         table_data = [
         [
             td.text_content().replace("\xa0", " ").strip()
@@ -114,15 +125,17 @@ def get_cerny_rytir_data(url:str, search_query:str) -> list:
             if td.text_content().replace("\xa0", " ").strip()
         ]
         for row in rows]
-
+        
         merged_list = []
         for i in range(0, len(table_data), 3):
             sublist = table_data[i:i+3]
             merged_list.append([item for sublist in sublist for item in sublist])
 
+        merged_lists = [sublist + [single_element] for sublist, single_element in zip(merged_list, cardid)]
+
         data = []
-        for row_data in merged_list:
-            if len(row_data) == 5:
+        for row_data in merged_lists:
+            if len(row_data) == 6:
                 category_data = {
                     COLS[0]: row_data[0],
                     COLS[1]: row_data[1],
@@ -131,7 +144,8 @@ def get_cerny_rytir_data(url:str, search_query:str) -> list:
                     COLS[4]: "",
                     COLS[5]: "",
                     COLS[6]: row_data[3],
-                    COLS[7]: row_data[4]}
+                    COLS[7]: row_data[4],
+                    COLS[8]: row_data[5]}
                 data.append(category_data)
 
         browser.close()
@@ -206,17 +220,46 @@ def get_najada_games_data(url: str, searchstring: str) -> list:
     except:
         return ["N/A"]
 
+def add_to_basket(url:str, username:str, password:str, cardname:str, cardid:str):
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(url)
+        page.fill('input[name="uzivjmeno"]', username)
+        page.fill('input[name="uzivheslo"]', password)
+        page.wait_for_selector('input[type="image"][alt="Přihlášení"]')
+        page.click('input[type="image"][alt="Přihlášení"]')
+        page.goto(url)
+
+        page.type('input[name="jmenokarty"]', cardname)
+        page.press('input[name="jmenokarty"]', 'Enter')
+        page.wait_for_load_state("domcontentloaded")    
+
+        form = page.query_selector(f'form[name="{cardid}"]')
+        input_element = form.query_selector('input[type="image"][alt="Vložit do košíku"]')
+        input_element.click()
+        browser.close()
+
 
 st.set_page_config(page_title=TITLE, layout="wide", initial_sidebar_state="expanded")
+
+if 'combined_df' not in st.session_state:
+    st.session_state.combined_df = pd.DataFrame(columns=COLS)
+
+col_shop = "Shop"
+col_basket = "Basket"
 
 with st.sidebar:
     st.subheader(TITLE)
     inpustring = st.text_area("Enter card names (one line per card)", height=600)
     checkstock = st.checkbox("Exclude 'Not In Stock'", value=True)
-    combined = st.checkbox("Show results in one table", value=True)
-    searchbutton = st.button("Search")
+    inc_cr = st.checkbox(f"Include {SHOPS[0]}", value=True)
+    inc_ng = st.checkbox(f"Include {SHOPS[1]}", value=True)
+    inc_bl = st.checkbox(f"Include {SHOPS[2]}", value=False)
+    st.button("Search", key="btn_search")
 
-if searchbutton:
+
+if st.session_state.btn_search:
     bar = st.sidebar.progress(0, text="Obtaining Data...")
     start_time = time.time()
     inputlist = process_input_data(inpustring)
@@ -235,7 +278,6 @@ if searchbutton:
 
     bar.progress(75, text="Processing Data...")
     elapsed_time = time.time() - start_time
-
 
     try:
         cr_data = [item for sublist in results_parallel if sublist for item in sublist]
@@ -265,28 +307,50 @@ if searchbutton:
     except:
         bl_df = pd.DataFrame(columns=COLS)
     
-    
     if checkstock:
         cr_df = cr_df[cr_df[COLS[6]] != "0"]
         ng_df = ng_df[ng_df[COLS[6]] != "0"]
         bl_df = bl_df[bl_df[COLS[6]] != "0"]
     
-    if combined:
-        c, cc = st.columns(2)
-        cr_df["Shop"] = SHOPS[0]
-        ng_df["Shop"] = SHOPS[1]
-        bl_df["Shop"] = SHOPS[2]
-        combined_df = pd.concat([cr_df, ng_df, bl_df])
-        c.data_editor(combined_df, hide_index=True, disabled=True, use_container_width=True)
-    else:
-        col1, col2, col3 = st.columns(3)
-        col1.subheader(SHOPS[0])
-        col1.data_editor(cr_df, hide_index=True, disabled=True, use_container_width=True, height=process_dataframe_height(cr_df), key="crdata")
-        col2.subheader(SHOPS[1])
-        col2.data_editor(ng_df, hide_index=True, disabled=True, use_container_width=True, height=process_dataframe_height(ng_df), key="ngdata")
-        col3.subheader(SHOPS[2])
-        col3.data_editor(bl_df, hide_index=True, disabled=True, use_container_width=True, height=process_dataframe_height(bl_df), key="bldata")
 
+    cr_df[col_shop] = SHOPS[0]
+    ng_df[col_shop] = SHOPS[1]
+    bl_df[col_shop] = SHOPS[2]
+    combined_df = pd.concat([cr_df, ng_df, bl_df])
+    combined_df[col_basket] = False
+    combined_df = combined_df.reset_index()
+
+    if not inc_cr:
+        combined_df = combined_df[combined_df[col_shop] != SHOPS[0]]
+    
+    if not inc_ng:
+        combined_df = combined_df[combined_df[col_shop] != SHOPS[1]]
+
+    if not inc_bl:
+        combined_df = combined_df[combined_df[col_shop] != SHOPS[2]]
+
+    st.session_state.combined_df = combined_df
 
     st.sidebar.success("Processed in {:.1f} seconds".format(elapsed_time))
     bar.progress(100, text="Done!")
+
+c, cc = st.columns(2)
+de = c.data_editor(st.session_state.combined_df, hide_index=False, use_container_width=True, column_order=(col_shop, "Name", "Set", "Rarity", "Language", "Condition", "Stock", "Price", col_basket))
+
+cardids = de[COLS[8]][de[col_basket] == True].to_list()
+cardnames = de[COLS[0]][de[col_basket] == True].to_list()
+
+
+
+with c:
+    with st.expander("Nákup", expanded=False):
+        st.caption("Funguje pouze pro Černého rytíře")
+        inp_usrn = st.text_input("Uživatelské jméno")
+        inp_pswd = st.text_input("Heslo", type="password")
+        btn_purchase = st.button("Přidat do košíku")
+
+        if btn_purchase:
+            for cname, cid in zip(cardnames, cardids):
+                add_to_basket(CR, inp_usrn, inp_pswd, cname, cid)
+            st.success("Operace proběhla úspěšně")
+            st.link_button(f"Web {SHOPS[0]}", CR)
