@@ -10,6 +10,7 @@ BL = "https://www.blacklotus.cz/magic-kusove-karty/"
 
 COLS = ("Name", "Set", "Type", "Rarity", "Language", "Condition", "Stock", "Price")
 TITLE = "MTG Card Availability & Price Comparison"
+SHOPS = ["Černý rytíř", "Najada Games", "Blacklotus"]
 
 def process_input_data(inputstring: str) -> list:
     lines = inputstring.strip().split('\n')
@@ -185,7 +186,7 @@ def get_najada_games_data(url: str, searchstring: str) -> list:
                     list_group.append(combined_dict)
                 
                 result2_list.append(list_group)
-
+            
             browser.close()
 
             combined_list = []
@@ -212,16 +213,10 @@ with st.sidebar:
     st.subheader(TITLE)
     inpustring = st.text_area("Enter card names (one line per card)", height=600)
     checkstock = st.checkbox("Exclude 'Not In Stock'", value=True)
+    combined = st.checkbox("Show results in one table", value=True)
     searchbutton = st.button("Search")
-    
-
-col1, col2, col3 = st.columns(3)
-col1.subheader("Najada Games")
-col2.subheader("Černý rytíř")
-col3.subheader("Blacklotus")
 
 if searchbutton:
-    
     bar = st.sidebar.progress(0, text="Obtaining Data...")
     start_time = time.time()
     inputlist = process_input_data(inpustring)
@@ -238,16 +233,18 @@ if searchbutton:
         future_once = executor.submit(get_najada_games_data, NG, inpustring)
         result_once = future_once.result()
 
-# import multiprocessing
-#     with multiprocessing.Pool() as pool:
-#         results_parallel = pool.starmap(get_cerny_rytir_data, [(CR, item) for item in inputlist])
-#         results_parallel2 = pool.starmap(get_black_lotus_data, [(BL, item) for item in inputlist])
-#         result_once = pool.apply(get_najada_games_data, (NG, inpustring))
-
     bar.progress(75, text="Processing Data...")
     elapsed_time = time.time() - start_time
 
-    
+
+    try:
+        cr_data = [item for sublist in results_parallel if sublist for item in sublist]
+        cr_df = pd.DataFrame(cr_data)
+        cr_df = cr_df.drop(columns=[COLS[4], COLS[5]])
+        cr_df[COLS[6]] = cr_df[COLS[6]].astype(str).str.replace(r' ks', '', regex=True)
+    except:
+        cr_df = pd.DataFrame(columns=COLS)
+
     try:
         ng_df = pd.DataFrame(result_once)
         ng_df = ng_df.drop(columns=[COLS[4], COLS[5]])
@@ -258,15 +255,7 @@ if searchbutton:
         ng_df[COLS[6]] = ng_df[COLS[6]].astype(str).str.replace(r'\D', '', regex=True)
     except:
         ng_df = pd.DataFrame(columns=COLS)
-
-    try:
-        cr_data = [item for sublist in results_parallel if sublist for item in sublist]
-        cr_df = pd.DataFrame(cr_data)
-        cr_df = cr_df.drop(columns=[COLS[4], COLS[5]])
-        cr_df[COLS[6]] = cr_df[COLS[6]].astype(str).str.replace(r' ks', '', regex=True)
-    except:
-        cr_df = pd.DataFrame(columns=COLS)
-    
+   
     try:
         bl_data = [item for sublist in results_parallel2 if sublist for item in sublist]
         bl_df = pd.DataFrame(bl_data)
@@ -278,13 +267,25 @@ if searchbutton:
     
     
     if checkstock:
-        ng_df = ng_df[ng_df[COLS[6]] != "0"]
         cr_df = cr_df[cr_df[COLS[6]] != "0"]
+        ng_df = ng_df[ng_df[COLS[6]] != "0"]
         bl_df = bl_df[bl_df[COLS[6]] != "0"]
-        
-    col1.data_editor(ng_df, hide_index=True, disabled=True, use_container_width=True, height=process_dataframe_height(ng_df), key="ngdata")
-    col2.data_editor(cr_df, hide_index=True, disabled=True, use_container_width=True, height=process_dataframe_height(cr_df), key="crdata")
-    col3.data_editor(bl_df, hide_index=True, disabled=True, use_container_width=True, height=process_dataframe_height(bl_df), key="bldata")
+    
+    if combined:
+        c, cc = st.columns(2)
+        cr_df["Shop"] = SHOPS[0]
+        ng_df["Shop"] = SHOPS[1]
+        bl_df["Shop"] = SHOPS[2]
+        combined_df = pd.concat([cr_df, ng_df, bl_df])
+        c.data_editor(combined_df, hide_index=True, disabled=True, use_container_width=True)
+    else:
+        col1, col2, col3 = st.columns(3)
+        col1.subheader(SHOPS[0])
+        col1.data_editor(cr_df, hide_index=True, disabled=True, use_container_width=True, height=process_dataframe_height(cr_df), key="crdata")
+        col2.subheader(SHOPS[1])
+        col2.data_editor(ng_df, hide_index=True, disabled=True, use_container_width=True, height=process_dataframe_height(ng_df), key="ngdata")
+        col3.subheader(SHOPS[2])
+        col3.data_editor(bl_df, hide_index=True, disabled=True, use_container_width=True, height=process_dataframe_height(bl_df), key="bldata")
 
 
     st.sidebar.success("Processed in {:.1f} seconds".format(elapsed_time))
