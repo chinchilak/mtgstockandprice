@@ -118,19 +118,19 @@ def get_cerny_rytir_data(url:str, search_query:str) -> list:
         for i in range(0, len(table_data), 3):
             sublist = table_data[i:i+3]
             merged_list.append([item for sublist in sublist for item in sublist])
-        
+
         data = []
         for row_data in merged_list:
-            if len(row_data) == 6:
+            if len(row_data) == 5:
                 category_data = {
                     COLS[0]: row_data[0],
                     COLS[1]: row_data[1],
-                    COLS[2]: row_data[2],
-                    COLS[3]: row_data[3],
+                    COLS[2]: "",
+                    COLS[3]: row_data[2],
                     COLS[4]: "",
                     COLS[5]: "",
-                    COLS[6]: row_data[4],
-                    COLS[7]: row_data[5]}
+                    COLS[6]: row_data[3],
+                    COLS[7]: row_data[4]}
                 data.append(category_data)
 
         browser.close()
