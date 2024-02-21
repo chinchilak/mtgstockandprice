@@ -12,6 +12,9 @@ COLS = ("Name", "Set", "Type", "Rarity", "Language", "Condition", "Stock", "Pric
 TITLE = "MTG Card Availability & Price Comparison"
 SHOPS = ["Černý rytíř", "Najada Games", "Blacklotus"]
 
+col_shop = "Shop"
+col_basket = "Basket"
+
 def process_input_data(inputstring: str) -> list:
     lines = inputstring.strip().split("\n")
     processed_lines = []
@@ -135,20 +138,21 @@ def get_cerny_rytir_data(url:str, search_query:str) -> list:
 
         data = []
         for row_data in merged_lists:
-            if len(row_data) == 6:
+            if len(row_data) > 6:
                 category_data = {
                     COLS[0]: row_data[0],
                     COLS[1]: row_data[1],
-                    COLS[2]: "",
-                    COLS[3]: row_data[2],
+                    COLS[2]: row_data[2],
+                    COLS[3]: row_data[3],
                     COLS[4]: "",
                     COLS[5]: "",
-                    COLS[6]: row_data[3],
-                    COLS[7]: row_data[4],
-                    COLS[8]: row_data[5]}
+                    COLS[6]: row_data[4],
+                    COLS[7]: row_data[5],
+                    COLS[8]: row_data[6]}
                 data.append(category_data)
 
         browser.close()
+        print(merged_lists)
         return data
 
 def get_najada_games_data(url: str, searchstring: str) -> list:
@@ -220,7 +224,7 @@ def get_najada_games_data(url: str, searchstring: str) -> list:
     except:
         return ["N/A"]
 
-def add_to_basket(url:str, username:str, password:str, cardname:str, cardid:str):
+def add_to_basket(url:str, username:str, password:str, cardname:str, cardid:str) -> None:
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
@@ -245,9 +249,6 @@ st.set_page_config(page_title=TITLE, layout="wide", initial_sidebar_state="expan
 
 if 'combined_df' not in st.session_state:
     st.session_state.combined_df = pd.DataFrame(columns=COLS)
-
-col_shop = "Shop"
-col_basket = "Basket"
 
 with st.sidebar:
     st.subheader(TITLE)
@@ -312,7 +313,6 @@ if st.session_state.btn_search:
         ng_df = ng_df[ng_df[COLS[6]] != "0"]
         bl_df = bl_df[bl_df[COLS[6]] != "0"]
     
-
     cr_df[col_shop] = SHOPS[0]
     ng_df[col_shop] = SHOPS[1]
     bl_df[col_shop] = SHOPS[2]
@@ -334,6 +334,7 @@ if st.session_state.btn_search:
     st.sidebar.success("Processed in {:.1f} seconds".format(elapsed_time))
     bar.progress(100, text="Done!")
 
+
 tab1, tab2 = st.tabs(["Shopping", "Scheduling"])
 
 with tab1:
@@ -342,7 +343,11 @@ with tab1:
         df = st.session_state.combined_df
         df["Min_Price"] = df.groupby("Name")["Price"].transform("min")
         df["Lowest_Price"] = (df["Price"] == df["Min_Price"])
-        de = c.data_editor(df, hide_index=True, use_container_width=True, column_order=(col_shop, "Name", "Set", "Rarity", "Language", "Condition", "Stock", "Price", "Lowest_Price", col_basket))
+        de = c.data_editor(df, 
+                           hide_index=True, 
+                           use_container_width=True, 
+                           column_order=(col_shop, "Name", "Set", "Rarity", "Language", "Condition", "Stock", "Price", "Lowest_Price", col_basket), 
+                           disabled=(col_shop, "Name", "Set", "Rarity", "Language", "Condition", "Stock", "Price", "Lowest_Price"))
         cardids = de[COLS[8]][de[col_basket] == True].to_list()
         cardnames = de[COLS[0]][de[col_basket] == True].to_list()
     except:
