@@ -138,7 +138,7 @@ def get_cerny_rytir_data(url:str, search_query:str) -> list:
 
         data = []
         for row_data in merged_lists:
-            if len(row_data) > 6:
+            if len(row_data) > 5:
                 category_data = {
                     COLS[0]: row_data[0],
                     COLS[1]: row_data[1],
@@ -152,7 +152,6 @@ def get_cerny_rytir_data(url:str, search_query:str) -> list:
                 data.append(category_data)
 
         browser.close()
-        print(merged_lists)
         return data
 
 def get_najada_games_data(url: str, searchstring: str) -> list:
@@ -256,7 +255,7 @@ with st.sidebar:
     checkstock = st.checkbox("Exclude 'Not In Stock'", value=True)
     inc_cr = st.checkbox(f"Include {SHOPS[0]}", value=True)
     inc_ng = st.checkbox(f"Include {SHOPS[1]}", value=True)
-    inc_bl = st.checkbox(f"Include {SHOPS[2]}", value=False)
+    inc_bl = st.checkbox(f"Include {SHOPS[2]}", value=True)
     st.button("Search", key="btn_search")
 
 
@@ -339,29 +338,28 @@ tab1, tab2 = st.tabs(["Shopping", "Scheduling"])
 
 with tab1:
     c, cc = st.columns(2)
-    try:
-        df = st.session_state.combined_df
+
+    df = st.session_state.combined_df
+    if len(df) > 0:
         df["Min_Price"] = df.groupby("Name")["Price"].transform("min")
         df["Lowest_Price"] = (df["Price"] == df["Min_Price"])
         de = c.data_editor(df, 
-                           hide_index=True, 
-                           use_container_width=True, 
-                           column_order=(col_shop, "Name", "Set", "Rarity", "Language", "Condition", "Stock", "Price", "Lowest_Price", col_basket), 
-                           disabled=(col_shop, "Name", "Set", "Rarity", "Language", "Condition", "Stock", "Price", "Lowest_Price"))
+                        hide_index=True, 
+                        use_container_width=True, 
+                        column_order=(col_shop, "Name", "Set", "Rarity", "Language", "Condition", "Stock", "Price", "Lowest_Price", col_basket), 
+                        disabled=(col_shop, "Name", "Set", "Rarity", "Language", "Condition", "Stock", "Price", "Lowest_Price"))
         cardids = de[COLS[8]][de[col_basket] == True].to_list()
         cardnames = de[COLS[0]][de[col_basket] == True].to_list()
-    except:
-        pass
 
-    with c:
-        with st.expander("Nákup", expanded=False):
-            st.caption("Funguje pouze pro Černého rytíře")
-            inp_usrn = st.text_input("Uživatelské jméno")
-            inp_pswd = st.text_input("Heslo", type="password")
-            btn_purchase = st.button("Přidat do košíku")
+        with c:
+            with st.expander("Nákup", expanded=False):
+                st.caption("Funguje pouze pro Černého rytíře")
+                inp_usrn = st.text_input("Uživatelské jméno")
+                inp_pswd = st.text_input("Heslo", type="password")
+                btn_purchase = st.button("Přidat do košíku")
 
-            if btn_purchase:
-                for cname, cid in zip(cardnames, cardids):
-                    add_to_basket(CR, inp_usrn, inp_pswd, cname, cid)
-                st.success("Operace proběhla úspěšně")
-                st.link_button(f"Web {SHOPS[0]}", CR)
+                if btn_purchase:
+                    for cname, cid in zip(cardnames, cardids):
+                        add_to_basket(CR, inp_usrn, inp_pswd, cname, cid)
+                    st.success("Operace proběhla úspěšně")
+                    st.link_button(f"Web {SHOPS[0]}", CR)
