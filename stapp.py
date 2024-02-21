@@ -13,7 +13,7 @@ TITLE = "MTG Card Availability & Price Comparison"
 SHOPS = ["Černý rytíř", "Najada Games", "Blacklotus"]
 
 def process_input_data(inputstring: str) -> list:
-    lines = inputstring.strip().split('\n')
+    lines = inputstring.strip().split("\n")
     processed_lines = []
     for line in lines:
         index = next((i for i, char in enumerate(line) if not char.isdigit() and not char.isspace()), None)
@@ -334,23 +334,29 @@ if st.session_state.btn_search:
     st.sidebar.success("Processed in {:.1f} seconds".format(elapsed_time))
     bar.progress(100, text="Done!")
 
-c, cc = st.columns(2)
-de = c.data_editor(st.session_state.combined_df, hide_index=False, use_container_width=True, column_order=(col_shop, "Name", "Set", "Rarity", "Language", "Condition", "Stock", "Price", col_basket))
+tab1, tab2 = st.tabs(["Shopping", "Scheduling"])
 
-cardids = de[COLS[8]][de[col_basket] == True].to_list()
-cardnames = de[COLS[0]][de[col_basket] == True].to_list()
+with tab1:
+    c, cc = st.columns(2)
+    try:
+        df = st.session_state.combined_df
+        df["Min_Price"] = df.groupby("Name")["Price"].transform("min")
+        df["Lowest_Price"] = (df["Price"] == df["Min_Price"])
+        de = c.data_editor(df, hide_index=True, use_container_width=True, column_order=(col_shop, "Name", "Set", "Rarity", "Language", "Condition", "Stock", "Price", "Lowest_Price", col_basket))
+        cardids = de[COLS[8]][de[col_basket] == True].to_list()
+        cardnames = de[COLS[0]][de[col_basket] == True].to_list()
+    except:
+        pass
 
+    with c:
+        with st.expander("Nákup", expanded=False):
+            st.caption("Funguje pouze pro Černého rytíře")
+            inp_usrn = st.text_input("Uživatelské jméno")
+            inp_pswd = st.text_input("Heslo", type="password")
+            btn_purchase = st.button("Přidat do košíku")
 
-
-with c:
-    with st.expander("Nákup", expanded=False):
-        st.caption("Funguje pouze pro Černého rytíře")
-        inp_usrn = st.text_input("Uživatelské jméno")
-        inp_pswd = st.text_input("Heslo", type="password")
-        btn_purchase = st.button("Přidat do košíku")
-
-        if btn_purchase:
-            for cname, cid in zip(cardnames, cardids):
-                add_to_basket(CR, inp_usrn, inp_pswd, cname, cid)
-            st.success("Operace proběhla úspěšně")
-            st.link_button(f"Web {SHOPS[0]}", CR)
+            if btn_purchase:
+                for cname, cid in zip(cardnames, cardids):
+                    add_to_basket(CR, inp_usrn, inp_pswd, cname, cid)
+                st.success("Operace proběhla úspěšně")
+                st.link_button(f"Web {SHOPS[0]}", CR)
